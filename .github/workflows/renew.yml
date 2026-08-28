@@ -1,0 +1,27 @@
+name: 自动续期产品
+
+on:
+  schedule:
+    - cron: '0 16 * * *'   # UTC 16:00 = 北京时间 00:00
+  workflow_dispatch:        # 保留手动触发
+
+jobs:
+  renew:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 调用续期 API
+        env:
+          DEV_TOKEN: ${{ secrets.RAIN_DEV_TOKEN }}
+          API_KEY: ${{ secrets.RAIN_X_API_KEY }}
+          PRODUCT_ID: ${{ secrets.PRODUCT_ID }}
+          DURATION: ${{ secrets.DURATION_DAY }}
+        run: |
+          curl --location 'https://api.v2.rainyun.com/product/point_renew' \
+            --header "x-api-key: ${{ secrets.RAIN_X_API_KEY }}" \
+            --header "rain-dev-token: ${{ secrets.RAIN_DEV_TOKEN }}" \
+            --header 'Content-Type: application/json' \
+            --data '{
+              "duration_day": ${{ secrets.DURATION_DAY }},
+              "product_id": ${{ secrets.PRODUCT_ID }},
+              "product_type": "rvh"
+            }'
