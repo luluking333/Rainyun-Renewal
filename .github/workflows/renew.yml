@@ -4,7 +4,7 @@ on:
   # 北京时间每天 00:00 = UTC 16:00
   schedule:
     - cron: '0 16 * * *'
-  # 支持手动触发，方便测试
+  # 支持手动触发
   workflow_dispatch:
 
 jobs:
@@ -14,8 +14,8 @@ jobs:
       - name: 调用雨云续期 API
         run: |
           curl --location --request POST 'https://api.v2.rainyun.com/product/point_renew' \
-            --header 'x-api-key: ${{ secrets.RAIN_X_API_KEY }}' \
-            --header 'rain-dev-token: ${{ secrets.RAIN_DEV_TOKEN }}' \
+            --header 'x-api-key: ${{ secrets.RAIN_API }}' \
+            --header 'rain-dev-token: {{rain-dev-token}}' \
             --header 'Content-Type: application/json' \
             --data-raw '{
               "duration_day": ${{ secrets.DURATION_DAY }},
