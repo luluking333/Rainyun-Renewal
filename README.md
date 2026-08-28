@@ -1,22 +1,19 @@
 # 雨云产品自动续期 (GitHub Actions)
 
-利用 GitHub Actions 定时调用雨云 API，每天自动为指定产品续期（使用积分抵扣）。
+每天北京时间 **00:00** 自动调用雨云 API 续期产品（积分抵扣）。
 
-- 北京时间**每天 00:00** 自动运行（对应 UTC 16:00）
-- 支持随时 **手动触发** 测试
-- 敏感信息全部存放在 GitHub Secrets，仓库内无明文
+严格基于官方 curl 模板：**只把 `x-api-key`、`duration_day`、`product_id`、`product_type` 这 4 处替换为 GitHub 机密，其余部分（`--location --request POST`、请求 URL、`rain-dev-token` 请求头、`Content-Type` 请求头、`--data-raw` 的 JSON 结构及引号格式）全部保持模板原样未改动。**
 
-## 一、配置 Secrets
+## 一、需要配置的机密（Secrets）
 
-进入仓库 **Settings → Secrets and variables → Actions**，点击 **New repository secret**，添加以下 5 个密钥：
+进入仓库 **Settings → Secrets and variables → Actions → New repository secret**，添加以下 **4 个**：
 
-| Secret 名称 | 填写内容 | 说明 |
+| Secret 名称 | 对应模板位置 | 填写内容 |
 | :--- | :--- | :--- |
-| `RAIN_X_API_KEY` | 你的 API Key | **雨云账户设置 → API密钥** 中获取 |
-| `RAIN_DEV_TOKEN` | 你的 Dev Token | **雨云账户设置 → API密钥** 中获取 |
-| `PRODUCT_ID` | 产品 ID（数字） | 例如 `73627` |
-| `DURATION_DAY` | 续费天数 | 仅可填 `7` 或 `30` |
-| `PRODUCT_TYPE` | 产品类别 | 见下方可选值 |
+| `RAIN_API` | `x-api-key:` | **雨云API**：到「账户设置 → API密钥」中获取 |
+| `DURATION_DAY` | `"duration_day":` | **续费天数**：仅可填 `7` 或 `30` |
+| `PRODUCT_ID` | `"product_id":` | **产品ID**：数字（如 `73627`） |
+| `PRODUCT_TYPE` | `"product_type":` | **产品类别**：见下表 |
 
 ### 产品类别 `PRODUCT_TYPE` 可选值
 
@@ -29,38 +26,45 @@
 | `ros` | 对象存储 |
 | `rcdn` | 雨云 CDN |
 
-> ⚠️ 以上 3 个变量（`DURATION_DAY`、`PRODUCT_ID`、`PRODUCT_TYPE`）是唯一需要/可以改动的地方，其余保持不变即可。
+## 二、保持原样未动的部分
 
-## 二、文件结构
+模板中除上述 4 处外的所有内容均未改动，包括：
+
+- `--location --request POST` 参数
+- 请求 URL：`https://api.v2.rainyun.com/product/point_renew`
+- `rain-dev-token: {{rain-dev-token}}` 请求头（按你的要求保持模板原样）
+- `Content-Type: application/json` 请求头
+- `--data-raw` 的 JSON 结构，以及 `duration_day`/`product_id` 不带引号、`product_type` 带引号的格式
+
+> **注意**：`rain-dev-token` 按你的要求保持了模板原字面量 `{{rain-dev-token}}`。它不含 `$` 前缀，在 GitHub Actions 中不会被当作表达式解析，会原样发送给服务器。**若雨云要求这里也填真实 token、需要改成第 5 个机密，告诉我一声即可。**
+
+## 三、文件结构
 
 ```
 .
 ├── .github/
 │   └── workflows/
-│       └── renew.yml    # 工作流配置（每天 00:00 自动续期）
+│       └── renew.yml    # 工作流（每天 00:00 自动运行）
 └── README.md
 ```
 
-## 三、使用方法
+## 四、使用方法
 
-### 方式一：自动运行
-推送代码后，工作流会按 cron 在北京时间每天 00:00 自动执行。
+**自动运行**：推送到默认分支后，每天北京时间 00:00 自动执行。
 
-### 方式二：手动运行（推荐首次先测一次）
-1. 进入仓库 **Actions** 选项卡
+**手动测试**（推荐首次先跑一次）：
+1. 仓库 **Actions** 选项卡
 2. 点击左侧 **雨云产品自动续期**
-3. 点击 **Run workflow** → 选择分支 → 再次 **Run workflow**
+3. **Run workflow** → 选分支 → 再次 **Run workflow**
 
-## 四、修改运行时间
+## 五、修改运行时间
 
-编辑 `.github/workflows/renew.yml` 中的 `cron` 表达式（GitHub 使用 **UTC** 时间）：
+编辑 `.github/workflows/renew.yml` 的 `cron`（GitHub 使用 **UTC** 时间）：
 
 ```yaml
 schedule:
   - cron: '0 16 * * *'   # UTC 16:00 = 北京时间 00:00
 ```
-
-常见对照（北京时间 → UTC）：
 
 | 北京时间 | UTC Cron |
 | :--- | :--- |
@@ -68,13 +72,8 @@ schedule:
 | 每天 08:00 | `0 0 * * *` |
 | 每天 12:00 | `0 4 * * *` |
 
-## 五、注意事项
+## 六、注意事项
 
-1. **仓库类型**：公开仓库可直接使用；私有仓库每月有免费额度，定时任务同样可用。
-2. **默认分支**：定时任务仅在默认分支（`main`/`master`）上生效。
-3. **天数限制**：`DURATION_DAY` 只能填 `7` 或 `30`。
-4. **先手动测一次**：首次使用务必手动运行确认 API 返回成功，再依赖定时任务。
-
----
-
-Made with ❤️ using GitHub Actions
+1. **仓库类型**：公开仓库直接用；私有仓库每月有免费额度，定时任务同样可用。
+2. **默认分支**：定时任务仅在默认分支（`main`/`master`）生效。
+3. **先手动测**：首次务必手动运行一次确认 API 返回成功，再依赖定时任务。
